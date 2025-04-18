@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'HTTP API'
+
+Parameters:
+  UserPoolId:
+    Type: String
+    Description: The ID of the Cognito User Pool to use for authentication.
+  Audience:
+    Type: String
+    Description: The audience for the JWT token.
+
+Globals:
+  Function:
+    Timeout: 5
+    Handler: app.lambdaHandler
+    Runtime: nodejs18.x
+
+Resources:
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Auth:
+        Authorizers:
+          UserAuth:
+            AuthorizationScopes:
+              - email
+              - openid
+              - profile
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}
+              audience:
+                - !Ref Audience
+      CorsConfiguration:
+        AllowMethods:
+          - Get
+        AllowOrigins:
+          - http://localhost:8080
+
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Events:
+        RootGet:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: get
+            ApiId: !Ref HttpApi
+
+  AdminLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Events:
+        RootGet:
+          Type: HttpApi
+          Properties:
+            Auth:
+              Authorizer: UserAuth
+            Path: /admin
+            Method: get
+            ApiId: !Ref HttpApi
