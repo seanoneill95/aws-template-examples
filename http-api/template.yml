@@ -22,11 +22,11 @@ Resources:
     Properties:
       Auth:
         Authorizers:
-          UserAuth:
+          GeneralAuth:
             AuthorizationScopes:
               - email
-              - openid
-              - profile
+              # - openid
+              # - profile
             IdentitySource: "$request.header.Authorization"
             JwtConfiguration:
               issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}
@@ -38,6 +38,7 @@ Resources:
         AllowOrigins:
           - http://localhost:8080
 
+  # Open route, no auth
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -50,6 +51,7 @@ Resources:
             Method: get
             ApiId: !Ref HttpApi
 
+  # Route for admins only: requires custom token (see cognito example)
   AdminLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -59,7 +61,58 @@ Resources:
           Type: HttpApi
           Properties:
             Auth:
-              Authorizer: UserAuth
+              Authorizer: GeneralAuth
+              AuthorizationScopes:
+                - !Sub Admins-${Audience}
             Path: /admin
             Method: get
             ApiId: !Ref HttpApi
+
+  # Route for SU only: requires custom token (see cognito example)
+  SULambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Events:
+        DosGet:
+          Type: HttpApi
+          Properties:
+            Auth:
+              Authorizer: GeneralAuth
+              AuthorizationScopes:
+                - !Sub SU-${Audience}
+            Path: /su
+            Method: get
+            ApiId: !Ref HttpApi
+
+  # $default route used as catchall
+  CatchAllLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Events:
+        RootGet:
+          Type: HttpApi
+
+  # Route for Admins and SU only: requires custom token (see cognito example)
+  BothLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Events:
+        DosGet:
+          Type: HttpApi
+          Properties:
+            Auth:
+              Authorizer: GeneralAuth
+              AuthorizationScopes:
+                - !Sub Admins-${Audience}
+                - !Sub SU-${Audience}
+            Path: /both
+            Method: get
+            ApiId: !Ref HttpApi
+
+Outputs:
+  ApiEndpont:
+    Description: "HTTP API endpoint URL"
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
