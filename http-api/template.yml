@@ -20,15 +20,16 @@ Resources:
   HttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
+      StageName: "$default"
       Auth:
         Authorizers:
           GeneralAuth:
             AuthorizationScopes:
               - email
-              # - openid
-              # - profile
             IdentitySource: "$request.header.Authorization"
             JwtConfiguration:
+              # The issuer URL for the Cognito User Pool. This is used to validate the JWT token.
+              # Comes from the Cognito stack
               issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}
               audience:
                 - !Ref Audience
@@ -57,7 +58,7 @@ Resources:
     Properties:
       CodeUri: src/
       Events:
-        RootGet:
+        AdminGet:
           Type: HttpApi
           Properties:
             Auth:
@@ -68,19 +69,19 @@ Resources:
             Method: get
             ApiId: !Ref HttpApi
 
-  # Route for SU only: requires custom token (see cognito example)
+  # Route for Super User only: requires custom token (see cognito example)
   SULambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
       Events:
-        DosGet:
+        SUGet:
           Type: HttpApi
           Properties:
             Auth:
               Authorizer: GeneralAuth
               AuthorizationScopes:
-                - !Sub SU-${Audience}
+                - !Sub SuperUsers-${Audience}
             Path: /su
             Method: get
             ApiId: !Ref HttpApi
@@ -91,7 +92,7 @@ Resources:
     Properties:
       CodeUri: src/
       Events:
-        RootGet:
+        CatchAllGet:
           Type: HttpApi
 
   # Route for Admins and SU only: requires custom token (see cognito example)
@@ -100,19 +101,64 @@ Resources:
     Properties:
       CodeUri: src/
       Events:
-        DosGet:
+        BothGet:
           Type: HttpApi
           Properties:
             Auth:
               Authorizer: GeneralAuth
               AuthorizationScopes:
                 - !Sub Admins-${Audience}
-                - !Sub SU-${Audience}
+                - !Sub SuperUsers-${Audience}
             Path: /both
             Method: get
             ApiId: !Ref HttpApi
 
 Outputs:
-  ApiEndpont:
+  ApiEndpoint:
     Description: "HTTP API endpoint URL"
     Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+
+      # CognitoUserPool:
+  #   Type: AWS::Cognito::UserPool
+  #   Properties:
+  #     UserPoolName: MyAppUserPool
+  #     AutoVerifiedAttributes:
+  #       - email
+  #     UsernameAttributes:
+  #       - email
+  
+  # CognitoResourceServer:
+  #   Type: AWS::Cognito::UserPoolResourceServer
+  #   Properties:
+  #     Identifier: myapi  # You’ll use this to build scopes like myapi/admin
+  #     Name: My API Resource Server
+  #     UserPoolId: !Ref CognitoUserPool
+  #     Scopes:
+  #       - ScopeName: admin
+  #         ScopeDescription: Admin access
+
+  # CognitoUserPoolClient:
+  #   Type: AWS::Cognito::UserPoolClient
+  #   Properties:
+  #     ClientName: MyAppClient
+  #     UserPoolId: !Ref CognitoUserPool
+  #     GenerateSecret: false
+  #     AllowedOAuthFlows:
+  #       - code
+  #       - implicit
+  #     AllowedOAuthScopes:
+  #       - email
+  #       - openid
+  #       - profile
+  #       - myapi/admin
+  #     CallbackURLs:
+  #       - http://localhost:8080
+  #     AllowedOAuthFlowsUserPoolClient: true
+
+  # # host authentication flow on cognito domain
+  # # https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-using-domain.html
+  # UserPoolDomain:
+  #   Type: AWS::Cognito::UserPoolDomain
+  #   Properties: 
+  #     Domain: !Sub ${AppName}-${AWS::AccountId}
+  #     UserPoolId: !Ref CognitoUserPool

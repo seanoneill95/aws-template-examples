@@ -1,10 +1,10 @@
 version = 0.1
 [default.deploy.parameters]
-stack_name = "HttpApi"
+stack_name = "HttpApiExampleStack"
 resolve_s3 = true
-s3_prefix = "HttpApi"
+s3_prefix = "HttpApiExampleStack"
 region = "us-west-1"
 profile = "sean_personal"
 capabilities = "CAPABILITY_IAM"
 image_repositories = []
-parameter_overrides = "UserPoolId=\"us-west-2_ZAjUIWAex\" Audience=\"4ihglvh14c2j1ijpvavungum6n\""
+parameter_overrides = "UserPoolId=\"us-west-1_WYXrw5tDE\" Audience=\"3ffvrvc63jktgcklcou5btnqmi\""
